@@ -3,7 +3,7 @@ import seaborn as sns
 import matplotlib.pylab as plt
 import statsmodels.api as sm
 
-from src.utils import separate_feature_target
+from src.utils import separate_feature_target, write_to_file
 
 
 class DatasetAnalysis:
@@ -15,9 +15,10 @@ class DatasetAnalysis:
         self.data_frame = data_frame
         self.target = target
 
-    def export_dataset_describe(self, decimal_digits: int = 2, path: str = "texts/dataset_description.txt") -> None:
-        with open(path, "w", encoding="utf-8") as afile:
-            print(self.data_frame.describe().round(decimal_digits), file=afile)
+    def export_dataset_describe(
+        self, decimal_digits: int = 4, path: str = "texts/dataset_description.txt"
+    ) -> None:
+        write_to_file(self.data_frame.describe().round(decimal_digits), path=path)
 
     def export_corr_heatmap(
         self,
@@ -66,13 +67,22 @@ class DatasetAnalysis:
         fig.suptitle(title.format(", ".join(self.target), var_num), fontsize=font_size)
         fig.tight_layout()
         plt.savefig(saving_path, dpi=dpi)
-    
-    def export_p_value_calculation(self, path: str = "texts/p_value_calculations.txt") -> None:
+
+    def export_p_value_calculation(
+        self, path: str = "texts/p_value_calculations.txt"
+    ) -> None:
         features, targets = separate_feature_target(self.data_frame, self.target)
         augmented_dataset = sm.add_constant(features)
-        linear_model = sm.OLS(targets, augmented_dataset).fit()
-        with open(path, "w", encoding="utf-8") as afile:
-            print(linear_model.summary(), file=afile)
+        for i, t in enumerate(self.target):
+            linear_model = sm.OLS(targets[:, i], augmented_dataset).fit()
+            file_mode = "w" if i == 0 else "a"
+            write_to_file(
+                f"p-values for target {t}:",
+                linear_model.summary(),
+                "\n" * 3,
+                path=path,
+                mode=file_mode,
+            )
 
     def analyze_dataset(self):
         self.export_dataset_describe()

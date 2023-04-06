@@ -48,7 +48,6 @@ class ModelType(Enum):
     RANDOM_FORREST = "Random Forrest"
     RIDGE = "Ridge"
     LASSO = "Lasso"
-    SVR = "Epsilon-Support Vector Regression"
     MLP = "Multi Layer Perceptron"
 
 
@@ -89,7 +88,7 @@ class Pipeline:
     def __init__(self, model: Model, type: ModelType) -> None:
         self._type = type
         self._model = model
-        self._pipeline = Callable[[numpy.ndarray], numpy.ndarray]
+        self._pipeline: Callable[[numpy.ndarray], numpy.ndarray]
 
     def fit(
         self,
