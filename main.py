@@ -11,7 +11,12 @@ from sklearn.neural_network import MLPRegressor
 
 from src.data_analysis import DatasetAnalysis
 from src.metrics import Metrics, calculate_err_metrics
-from src.utils import DatasetMetadata, data_train_test_split, write_to_file
+from src.utils import (
+    DatasetMetadata,
+    create_directories,
+    data_train_test_split,
+    write_to_file,
+)
 from src.model import GridSearchScenario, ModelType, Pipeline, STDScaler
 
 
@@ -75,6 +80,11 @@ def execute_hparam_search(
 
 
 def main():
+
+    # prepare the directories
+    create_directories()
+
+    # load the dataset
     dataset = load_dataset(
         dataset_metadata.path,
         header=dataset_metadata.header,
@@ -102,7 +112,10 @@ def main():
     print("\nexecuting hyperparameter tunning for regression models...")
     execute_hparam_search(train_features, test_features, train_targets, test_targets)
 
-    print("all done!")
+    print("\nall done!")
+    print(
+        '*** The charts and text reports are saved in "figs" and "texts" directories, respectively *** '
+    )
 
 
 if __name__ == "__main__":
