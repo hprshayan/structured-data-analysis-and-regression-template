@@ -1,8 +1,15 @@
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+
+class MetricTypes(Enum):
+    MSE = "mse"
+    MAE = "mae"
+    R2_SCORE = "r2_score"
 
 
 @dataclass

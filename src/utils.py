@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from functools import reduce
 import os
 import shutil
+import matplotlib.pyplot as plt
 from typing import Callable, Literal
 import numpy
 import pandas
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, permutation_test_score
 
 
 @dataclass
@@ -51,6 +52,29 @@ def data_train_test_split(
 def write_to_file(*text: tuple[str], path: str, mode: Literal["w", "a"] = "w"):
     with open(path, mode, encoding="utf-8") as afile:
         print(*text, sep="\n", file=afile)
+
+
+def export_permutation_test_score(
+    model: any,
+    X: numpy.ndarray,
+    y: numpy.ndarray,
+    scoring: str = "r2",
+    dpi: int = 200,
+    path: str = "figs/best_model_permutation_test_score.png",
+) -> None:
+    score, perm_scores, pvalue = permutation_test_score(
+        model, X, y, scoring=scoring, n_permutations=1000
+    )
+
+    fig, ax = plt.subplots()
+    ax.hist(perm_scores, bins=20, density=True)
+    ax.axvline(score, ls="--", color="r")
+    score_label = f"Score on original\ndata: {score:.2f}\n(p-value: {pvalue:.3f})"
+    ax.text(0.7, 10, score_label, fontsize=12)
+    ax.set_xlabel(f"{scoring} score")
+    _ = ax.set_ylabel("Probability")
+
+    plt.savefig(path, dpi=dpi)
 
 
 def create_directories() -> None:

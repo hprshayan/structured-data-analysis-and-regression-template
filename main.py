@@ -10,11 +10,12 @@ from pprint import pformat
 from sklearn.neural_network import MLPRegressor
 
 from src.data_analysis import DatasetAnalysis
-from src.metrics import Metrics, calculate_err_metrics
+from src.metrics import MetricTypes, Metrics, calculate_err_metrics
 from src.utils import (
     DatasetMetadata,
     create_directories,
     data_train_test_split,
+    export_permutation_test_score,
     write_to_file,
 )
 from src.model import GridSearchScenario, ModelType, Pipeline, STDScaler
@@ -22,9 +23,10 @@ from src.model import GridSearchScenario, ModelType, Pipeline, STDScaler
 
 warnings.filterwarnings("ignore", category=DataConversionWarning)
 
-# dataset_metadata = DatasetMetadata("1.xlsx", ["Vs"], 0, 0)
-dataset_metadata = DatasetMetadata("2.xlsx", ["Nw[0-2]", "No[2-6]"], 1, 1)
+dataset_metadata = DatasetMetadata("1.xlsx", ["Vs"], 0, 0)
+# dataset_metadata = DatasetMetadata("2.xlsx", ["Nw[0-2]", "No[2-6]"], 1, 1)
 
+COMPARISON_CRITERIA = MetricTypes.MSE
 TEST_SIZE = 0.2
 SEED = 0
 RANDOM_FORREST_HPARAMS = {
@@ -34,10 +36,11 @@ RANDOM_FORREST_HPARAMS = {
 RIDGE_HPARAMS = {"alpha": list(numpy.arange(0.1, 2.0, 0.1))}
 LASSO_HPARAMS = {"alpha": list(numpy.arange(0.1, 2.0, 0.1))}
 MLP_HPARAMS = {
-    "hidden_layer_sizes": [(10,), (20,), (100,), (10, 10), (20, 20)],
+    "hidden_layer_sizes": [(10,), (20,), (100,), (10, 10)],
     "activation": ["identity", "relu"],
-    "batch_size": [1, 20, 50, 100],
-    "learning_rate": ["constant", "invscaling", "adaptive"],
+    "batch_size": [1, 20, 50],
+    "learning_rate": ["constant", "adaptive"],
+    "learning_rate_init": [0.001, 0.01],
 }
 
 
@@ -52,15 +55,18 @@ def execute_hparam_search(
     test_features: numpy.ndarray,
     train_targets: numpy.ndarray,
     test_targets: numpy.ndarray,
+    comparison_criteria: MetricTypes,
     path: str = "texts/model_metrics.txt",
-) -> None:
-    def execute(scenario: GridSearchScenario) -> Metrics:
+) -> Pipeline:
+    def execute(scenario: GridSearchScenario) -> tuple[Pipeline, Metrics]:
         print(
             f"performing hparam grid search for the {scenario.model_type.value} model..."
         )
         pipeline = Pipeline(scenario.model, scenario.model_type)
         pipeline.fit(train_features, train_targets, hparams=scenario.hparams)
-        return calculate_err_metrics(test_targets, pipeline.forward(test_features))
+        return pipeline, calculate_err_metrics(
+            test_targets, pipeline.forward(test_features)
+        )
 
     execution_scenarios = [
         GridSearchScenario(ModelType.LINEAR, LinearRegression, {}),
@@ -72,15 +78,37 @@ def execute_hparam_search(
         GridSearchScenario(ModelType.MLP, MLPRegressor, MLP_HPARAMS),
     ]
 
-    model_metrics = {
-        scenario.model_type.value: execute(scenario) for scenario in execution_scenarios
-    }
+    model_metrics: dict[str, Metrics] = {}
+    best_metric = 1e5
+    best_pipeline: Pipeline
+    for scenario in execution_scenarios:
+        pipeline, model_metrics[scenario.model_type.value] = execute(scenario)
+        if (
+            getattr(model_metrics[scenario.model_type.value], comparison_criteria.value)
+            < best_metric
+        ):
+            best_pipeline = pipeline
 
     write_to_file(pformat(model_metrics), path=path)
 
+    print("\n************************************************************************")
+    print(f"Model {best_pipeline.type.value} is chosen:")
+    print(f"\thyperparameters: {best_pipeline.best_hparams}")
+    print(f"\tvalidation metrics: {model_metrics[best_pipeline.type.value]}")
+
+    features = numpy.concatenate((train_features, test_features), axis=0)
+    targets = numpy.concatenate((train_targets, test_targets), axis=0)
+    export_permutation_test_score(
+        pipeline.trained_model,
+        pipeline.feature_scaler.transform(features),
+        pipeline.target_scaler.transform(targets),
+    )
+    print("\tpermutation test score of the chosen model is exported")
+
+    return best_pipeline
+
 
 def main():
-
     # prepare the directories
     create_directories()
 
@@ -110,9 +138,11 @@ def main():
 
     # run the hyperparameter search
     print("\nexecuting hyperparameter tunning for regression models...")
-    execute_hparam_search(train_features, test_features, train_targets, test_targets)
+    best_pipeline = execute_hparam_search(
+        train_features, test_features, train_targets, test_targets, COMPARISON_CRITERIA
+    )
 
-    print("\nall done!")
+    print("\nAll done!")
     print(
         '*** The charts and text reports are saved in "figs" and "texts" directories, respectively *** '
     )

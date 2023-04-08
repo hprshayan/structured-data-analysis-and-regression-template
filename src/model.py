@@ -85,10 +85,11 @@ class Pipeline:
     feature_scaler: DataTransformer
     target_scaler: DataTransformer
 
-    def __init__(self, model: Model, type: ModelType) -> None:
-        self._type = type
+    def __init__(self, model: Model, type_: ModelType) -> None:
+        self._type = type_
         self._model = model
         self._pipeline: Callable[[numpy.ndarray], numpy.ndarray]
+        self._best_hparams: dict[str, int|float|str] | None = None
 
     def fit(
         self,
@@ -102,43 +103,32 @@ class Pipeline:
         transformed_targets = self.target_scaler.transform(targets)
         if self._type != ModelType.LINEAR:
             grid_search.fit(transformed_features, transformed_targets)
-            best_hparams = grid_search.best_params_
-            model = self._model(**best_hparams)
+            self._best_hparams = grid_search.best_params_
+            self._trained_model = self._model(**self._best_hparams)
         else:
-            model = self._model()
-        model.fit(transformed_features, transformed_targets)
+            self._trained_model = self._model()
+        self._trained_model.fit(transformed_features, transformed_targets)
         self._pipeline = composite_function(
             self.target_scaler.inv_transform,
             double_dim_converter,
-            model.predict,
+            self._trained_model.predict,
             self.feature_scaler.transform,
         )
 
     def forward(self, features: numpy.ndarray) -> numpy.ndarray:
         return self._pipeline(features)
 
-
-class LinearPipeline(Pipeline):
-    def fit(
-        self,
-        features: numpy.ndarray,
-        targets: numpy.ndarray,
-        hparams: dict[str, int | float | str] = {},
-        verbose: Literal[0, 1, 2, 3] = 0,
-    ) -> None:
-        transformed_features = self.feature_scaler.transform(features)
-        transformed_targets = self.target_scaler.transform(targets)
-        self._model().fit(transformed_features, transformed_targets)
-        self._pipeline = composite_function(
-            self.target_scaler.inv_transform,
-            double_dim_converter,
-            self._model.predict,
-            self.feature_scaler.transform,
-        )
-
     @property
     def type(self):
         return self._type
+
+    @property
+    def best_hparams(self):
+        return self._best_hparams
+
+    @property
+    def trained_model(self):
+        return self._trained_model
 
 @dataclass
 class GridSearchScenario:
