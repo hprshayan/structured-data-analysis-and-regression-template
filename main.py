@@ -2,7 +2,7 @@
 
 import warnings
 import numpy
-import pandas as pd
+import copy as c
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.exceptions import DataConversionWarning
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
@@ -16,6 +16,7 @@ from src.utils import (
     create_directories,
     data_train_test_split,
     export_permutation_test_score,
+    load_dataset,
     write_to_file,
 )
 from src.model import GridSearchScenario, ModelType, Pipeline, STDScaler
@@ -44,12 +45,6 @@ MLP_HPARAMS = {
 }
 
 
-def load_dataset(path: str, header: int = 0, column_skip_count: int = 0):
-    with open(path, "rb") as afile:
-        data_frame = pd.read_excel(afile, header=header)
-    return data_frame.drop(data_frame.columns[:column_skip_count], axis=1)
-
-
 def execute_hparam_search(
     train_features: numpy.ndarray,
     test_features: numpy.ndarray,
@@ -58,6 +53,7 @@ def execute_hparam_search(
     comparison_criteria: MetricTypes,
     path: str = "texts/model_metrics.txt",
 ) -> Pipeline:
+
     def execute(scenario: GridSearchScenario) -> tuple[Pipeline, Metrics]:
         print(
             f"performing hparam grid search for the {scenario.model_type.value} model..."
@@ -83,11 +79,10 @@ def execute_hparam_search(
     best_pipeline: Pipeline
     for scenario in execution_scenarios:
         pipeline, model_metrics[scenario.model_type.value] = execute(scenario)
-        if (
-            getattr(model_metrics[scenario.model_type.value], comparison_criteria.value)
-            < best_metric
-        ):
-            best_pipeline = pipeline
+        metric = getattr(model_metrics[scenario.model_type.value], comparison_criteria.value)
+        if (metric < best_metric):
+            best_pipeline = c.deepcopy(pipeline)
+            best_metric = metric
 
     write_to_file(pformat(model_metrics), path=path)
 

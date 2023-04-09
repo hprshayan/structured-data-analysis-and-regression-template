@@ -1,3 +1,4 @@
+from typing import Literal
 import pandas
 import seaborn as sns
 import matplotlib.pylab as plt
@@ -12,13 +13,30 @@ class DatasetAnalysis:
     def __init__(
         self, data_frame: pandas.core.frame.DataFrame, target: list[str]
     ) -> None:
+
         self.data_frame = data_frame
         self.target = target
 
     def export_dataset_describe(
-        self, decimal_digits: int = 4, path: str = "texts/dataset_description.txt"
+        self,
+        decimal_digits: int = 4,
+        export_format: Literal[".txt", ".xlsx"] = ".txt",
+        path: str = "texts/dataset_description",
     ) -> None:
-        write_to_file(self.data_frame.describe().round(decimal_digits), path=path)
+
+        if export_format == ".xlsx":
+            self.data_frame.describe().round(decimal_digits).to_excel(
+                path + export_format, "dataset-description"
+            )
+        elif export_format == ".txt":
+            # Display the table without replacing middle rows and columns with "...".
+            with pandas.option_context(
+                "display.max_columns", None, "display.max_rows", None
+            ):
+                write_to_file(
+                    self.data_frame.describe().round(decimal_digits),
+                    path=path + export_format,
+                )
 
     def export_corr_heatmap(
         self,
@@ -26,6 +44,7 @@ class DatasetAnalysis:
         saving_path: str = "figs/correlation.png",
         title: str = "The heatmap of variable correlations",
     ) -> None:
+
         correlations = self.data_frame.corr()
         sns.heatmap(correlations).set(title=title)
         plt.savefig(saving_path, dpi=dpi)
@@ -36,6 +55,7 @@ class DatasetAnalysis:
         saving_path: str = "figs/full_scatterplot.png",
         title: str = "The scatter plot of dataset",
     ) -> None:
+
         g = sns.PairGrid(self.data_frame)
         g.map_diag(sns.histplot)
         g.map_offdiag(sns.scatterplot)
@@ -50,7 +70,8 @@ class DatasetAnalysis:
         dpi: int = 200,
         saving_path: str = "figs/correlated_scatterplot.png",
         title: str = "Scatter plot of targets ({}) and {} most correlated variables",
-    ):
+    ) -> None:
+
         correlations = self.data_frame.corr()
         target_count = len(self.target)
         fig, axes = plt.subplots(
@@ -71,14 +92,18 @@ class DatasetAnalysis:
     def export_p_value_calculation(
         self, path: str = "texts/p_value_calculations.txt"
     ) -> None:
+
         features, targets = separate_feature_target(self.data_frame, self.target)
         augmented_dataset = sm.add_constant(features)
+        xname = ["constant"] + [
+            c for c in self.data_frame.columns if c not in self.target
+        ]
         for i, t in enumerate(self.target):
             linear_model = sm.OLS(targets[:, i], augmented_dataset).fit()
             file_mode = "w" if i == 0 else "a"
             write_to_file(
                 f"p-values for target {t}:",
-                linear_model.summary(),
+                linear_model.summary(yname=t, xname=xname),
                 "\n" * 3,
                 path=path,
                 mode=file_mode,

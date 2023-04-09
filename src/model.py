@@ -98,6 +98,7 @@ class Pipeline:
         hparams: dict[str, int | float | str] = {},
         verbose: Literal[0, 1, 2, 3] = 3,
     ) -> None:
+    
         grid_search = GridSearchCV(self._model(), hparams, verbose=verbose)
         transformed_features = self.feature_scaler.transform(features)
         transformed_targets = self.target_scaler.transform(targets)
