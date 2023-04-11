@@ -19,6 +19,7 @@ class Metrics:
     mae: float
     r2_score: float
 
+
 def calculate_err_metrics(y_true: numpy.ndarray, y_pred: numpy.ndarray) -> Metrics:
     mse = mean_squared_error(y_true, y_pred)
     mae = mean_absolute_error(y_true, y_pred)

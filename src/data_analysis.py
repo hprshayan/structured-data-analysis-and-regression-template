@@ -10,10 +10,7 @@ from src.utils import separate_feature_target, write_to_file
 class DatasetAnalysis:
     "class that analyzes a dataset"
 
-    def __init__(
-        self, data_frame: pandas.core.frame.DataFrame, target: list[str]
-    ) -> None:
-
+    def __init__(self, data_frame: pandas.DataFrame, target: list[str]) -> None:
         self.data_frame = data_frame
         self.target = target
 
@@ -23,7 +20,6 @@ class DatasetAnalysis:
         export_format: Literal[".txt", ".xlsx"] = ".txt",
         path: str = "texts/dataset_description",
     ) -> None:
-
         if export_format == ".xlsx":
             self.data_frame.describe().round(decimal_digits).to_excel(
                 path + export_format, "dataset-description"
@@ -44,7 +40,6 @@ class DatasetAnalysis:
         saving_path: str = "figs/correlation.png",
         title: str = "The heatmap of variable correlations",
     ) -> None:
-
         correlations = self.data_frame.corr()
         sns.heatmap(correlations).set(title=title)
         plt.savefig(saving_path, dpi=dpi)
@@ -55,7 +50,6 @@ class DatasetAnalysis:
         saving_path: str = "figs/full_scatterplot.png",
         title: str = "The scatter plot of dataset",
     ) -> None:
-
         g = sns.PairGrid(self.data_frame)
         g.map_diag(sns.histplot)
         g.map_offdiag(sns.scatterplot)
@@ -71,7 +65,6 @@ class DatasetAnalysis:
         saving_path: str = "figs/correlated_scatterplot.png",
         title: str = "Scatter plot of targets ({}) and {} most correlated variables",
     ) -> None:
-
         correlations = self.data_frame.corr()
         target_count = len(self.target)
         fig, axes = plt.subplots(
@@ -92,7 +85,6 @@ class DatasetAnalysis:
     def export_p_value_calculation(
         self, path: str = "texts/p_value_calculations.txt"
     ) -> None:
-
         features, targets = separate_feature_target(self.data_frame, self.target)
         augmented_dataset = sm.add_constant(features)
         xname = ["constant"] + [

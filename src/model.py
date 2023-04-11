@@ -7,7 +7,7 @@ from sklearn.model_selection import GridSearchCV
 
 import numpy
 
-from src.utils import double_dim_converter, composite_function
+from src.utils import CategoricalEncoder, double_dim_converter, composite_function
 
 
 class DataTransformer(Protocol):
@@ -81,15 +81,15 @@ class ModelPipeline(Protocol):
 
 
 class Pipeline:
-
     feature_scaler: DataTransformer
     target_scaler: DataTransformer
+    categorical_encoder: CategoricalEncoder
 
     def __init__(self, model: Model, type_: ModelType) -> None:
         self._type = type_
         self._model = model
         self._pipeline: Callable[[numpy.ndarray], numpy.ndarray]
-        self._best_hparams: dict[str, int|float|str] | None = None
+        self._best_hparams: dict[str, int | float | str] | None = None
 
     def fit(
         self,
@@ -98,7 +98,6 @@ class Pipeline:
         hparams: dict[str, int | float | str] = {},
         verbose: Literal[0, 1, 2, 3] = 3,
     ) -> None:
-    
         grid_search = GridSearchCV(self._model(), hparams, verbose=verbose)
         transformed_features = self.feature_scaler.transform(features)
         transformed_targets = self.target_scaler.transform(targets)
@@ -114,6 +113,7 @@ class Pipeline:
             double_dim_converter,
             self._trained_model.predict,
             self.feature_scaler.transform,
+            self.categorical_encoder.encode,
         )
 
     def forward(self, features: numpy.ndarray) -> numpy.ndarray:
@@ -130,6 +130,7 @@ class Pipeline:
     @property
     def trained_model(self):
         return self._trained_model
+
 
 @dataclass
 class GridSearchScenario:
