@@ -1,13 +1,17 @@
 from dataclasses import dataclass
-from typing import Callable, Literal, Protocol
 from enum import Enum
-import sklearn
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV
+from typing import Callable, Literal, Protocol
 
 import numpy
+import sklearn
+from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import StandardScaler
 
-from src.utils import CategoricalEncoder, double_dim_converter, composite_function
+from src.utils import (
+    CategoricalEncoderDecoder,
+    composite_function,
+    double_dim_converter,
+)
 
 
 class DataTransformer(Protocol):
@@ -83,7 +87,7 @@ class ModelPipeline(Protocol):
 class Pipeline:
     feature_scaler: DataTransformer
     target_scaler: DataTransformer
-    categorical_encoder: CategoricalEncoder
+    categorical_encoder_decoder: CategoricalEncoderDecoder
 
     def __init__(self, model: Model, type_: ModelType) -> None:
         self._type = type_
@@ -113,7 +117,7 @@ class Pipeline:
             double_dim_converter,
             self._trained_model.predict,
             self.feature_scaler.transform,
-            self.categorical_encoder.encode,
+            self.categorical_encoder_decoder.encode_features,
         )
 
     def forward(self, features: numpy.ndarray) -> numpy.ndarray:

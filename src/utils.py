@@ -1,13 +1,14 @@
+import os
+import shutil
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import reduce
-import os
-import shutil
-import matplotlib.pyplot as plt
 from typing import Callable, Literal, Protocol
+
+import matplotlib.pyplot as plt
 import numpy
 import pandas
-from sklearn.model_selection import train_test_split, permutation_test_score
+from sklearn.model_selection import permutation_test_score, train_test_split
 
 
 class DatasetType(Enum):
@@ -25,24 +26,67 @@ class DatasetMetadata:
     delimiter: str | None = None  # The delimiter of csv files
     na_values: list[str] = field(
         default_factory=list
-    )  # list of null values in csv files
+    )  # list of null values in the original dataset
     categorical_columns: list[str] = field(default_factory=list)
 
 
-class CategoricalEncoder:
-    def __init__(self, dataset_metadata: DatasetMetadata) -> None:
-        self.prefix_sep: str = "_"
-        self.categorical_columns = dataset_metadata.categorical_columns
+class CategoricalEncoderDecoder:
+    def __init__(
+        self, dataset_metadata: DatasetMetadata, all_columns: list[str]
+    ) -> None:
+        self._prefix_sep: str = "_"
+        self._categorical_columns: list[str] = dataset_metadata.categorical_columns
+        self._target: list[str] = dataset_metadata.target
+        tmp_columns = self._target + self._categorical_columns
+        self._numerical_columns: list[str] = [
+            col for col in all_columns if col not in tmp_columns
+        ]
+        self._decode_columns: list[str] | None = None
+        self._col_name_idx_dict: dict[str, int] | None = None
 
     def encode(self, data: pandas.DataFrame) -> pandas.DataFrame:
-        columns = [
-            col for col in data.columns if col not in self.categorical_columns
-        ] + self.categorical_columns
-        return pandas.get_dummies(data[columns], prefix_sep=self.prefix_sep)
+        if len(self._categorical_columns) == 0:
+            return data
+        encoded = pandas.get_dummies(
+            data[self._categorical_columns], prefix_sep=self._prefix_sep
+        )
+        self._decode_columns = encoded.columns
+        return pandas.concat(
+            [data[self._numerical_columns], encoded, data[self._target]], axis=1
+        )
+
+    def encode_features(self, data: numpy.ndarray) -> numpy.ndarray:
+        if len(self._categorical_columns) == 0:
+            return data
+        categorical_indices = [
+            self._col_name_idx_dict[col] for col in self._categorical_columns
+        ]
+        numerical_indices = [
+            self._col_name_idx_dict[col] for col in self._numerical_columns
+        ]
+        encoded = pandas.get_dummies(
+            pandas.DataFrame(data[:, categorical_indices]), prefix_sep=self._prefix_sep
+        ).to_numpy()
+        return numpy.concatenate((data[:, numerical_indices], encoded), axis=1)
+
+    def decode(self, data: pandas.DataFrame) -> pandas.DataFrame:
+        if len(self._categorical_columns) == 0:
+            return data
+        return pandas.concat(
+            [
+                data[self._numerical_columns],
+                pandas.from_dummies(data[self._decode_columns], sep=self._prefix_sep),
+                data[self._target],
+            ],
+            axis=1,
+        )
+
+    def set_name_idx(self, name_idx_dict: dict[str, int]) -> None:
+        self._col_name_idx_dict = name_idx_dict
 
 
 class DataLoader(Protocol):
-    "represents the class that dataset"
+    "represents the class that loads dataset"
 
     @staticmethod
     def load(dataset_metadata: DatasetMetadata) -> pandas.DataFrame:
@@ -102,12 +146,10 @@ def encode_categorical_data(
     return pandas.get_dummies(dataset[new_column_order], prefix_sep=prefix_sep)
 
 
-def load_and_init_process_data(
-    dataset_metadata: DatasetMetadata, categorical_encoder: CategoricalEncoder
-) -> pandas.DataFrame:
+def load_and_init_process_data(dataset_metadata: DatasetMetadata) -> pandas.DataFrame:
     original_dataset = load_dataset(dataset_metadata)
     dataset_without_null = drop_save_null_rows(original_dataset)
-    return categorical_encoder.encode(dataset_without_null)
+    return dataset_without_null
 
 
 def double_dim_converter(x: numpy.ndarray) -> numpy.ndarray:
@@ -126,10 +168,14 @@ def composite_function(
 
 def separate_feature_target(
     data_frame: pandas.DataFrame, target: list[str]
-) -> tuple[numpy.ndarray, numpy.ndarray]:
-    X = double_dim_converter(data_frame.drop(target, axis=1).to_numpy())
+) -> tuple[numpy.ndarray, numpy.ndarray, dict[str, int]]:
+    dropped_target = data_frame.drop(target, axis=1)
+    X = double_dim_converter(dropped_target.to_numpy())
     y = double_dim_converter(data_frame[target].to_numpy())
-    return X, y
+    col_name_idx: dict[str, int] = {
+        name: idx for idx, name in enumerate(dropped_target.columns)
+    }
+    return X, y, col_name_idx
 
 
 def data_train_test_split(
@@ -138,8 +184,8 @@ def data_train_test_split(
     seed: int,
     target: list[str],
     save_train_test_data: bool = True,
-) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]:
-    X, y = separate_feature_target(data_frame, target)
+) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray, dict[str, int]]:
+    X, y, col_name_idx = separate_feature_target(data_frame, target)
     split = train_test_split(X, y, test_size=test_size, shuffle=True, random_state=seed)
 
     if save_train_test_data:
@@ -157,7 +203,7 @@ def data_train_test_split(
             train_data_frame.to_excel(writer, sheet_name="training-data", index=False)
             test_data_frame.to_excel(writer, sheet_name="test-data", index=False)
 
-    return split
+    return *split, col_name_idx
 
 
 def write_to_file(*text: tuple[str], path: str, mode: Literal["w", "a"] = "w"):

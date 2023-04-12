@@ -1,0 +1,42 @@
+p-values for target charges:
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                charges   R-squared:                       0.751
+Model:                            OLS   Adj. R-squared:                  0.749
+Method:                 Least Squares   F-statistic:                     500.8
+Date:                Wed, 12 Apr 2023   Prob (F-statistic):               0.00
+Time:                        21:34:28   Log-Likelihood:                -13548.
+No. Observations:                1338   AIC:                         2.711e+04
+Df Residuals:                    1329   BIC:                         2.716e+04
+Df Model:                           8                                         
+Covariance Type:            nonrobust                                         
+====================================================================================
+                       coef    std err          t      P>|t|      [0.025      0.975]
+------------------------------------------------------------------------------------
+constant          -296.4168    430.507     -0.689      0.491   -1140.964     548.130
+age                256.8564     11.899     21.587      0.000     233.514     280.199
+bmi                339.1935     28.599     11.860      0.000     283.088     395.298
+children           475.5005    137.804      3.451      0.001     205.163     745.838
+sex_female         -82.5512    269.226     -0.307      0.759    -610.706     445.604
+sex_male          -213.8656    274.976     -0.778      0.437    -753.299     325.568
+smoker_no        -1.207e+04    282.338    -42.759      0.000   -1.26e+04   -1.15e+04
+smoker_yes        1.178e+04    313.530     37.560      0.000    1.12e+04    1.24e+04
+region_northeast   512.9050    300.348      1.708      0.088     -76.303    1102.113
+region_northwest   159.9411    301.334      0.531      0.596    -431.201     751.083
+region_southeast  -522.1170    330.759     -1.579      0.115   -1170.983     126.749
+region_southwest  -447.1459    310.933     -1.438      0.151   -1057.119     162.827
+==============================================================================
+Omnibus:                      300.366   Durbin-Watson:                   2.088
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):              718.887
+Skew:                           1.211   Prob(JB):                    7.86e-157
+Kurtosis:                       5.651   Cond. No.                     3.80e+17
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+[2] The smallest eigenvalue is 2.44e-29. This might indicate that there are
+strong multicollinearity problems or that the design matrix is singular.
+
+
+
+

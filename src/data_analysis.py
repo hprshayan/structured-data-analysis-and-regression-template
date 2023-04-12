@@ -1,17 +1,24 @@
 from typing import Literal
+
+import matplotlib.pylab as plt
 import pandas
 import seaborn as sns
-import matplotlib.pylab as plt
 import statsmodels.api as sm
 
-from src.utils import separate_feature_target, write_to_file
+from src.utils import CategoricalEncoderDecoder, separate_feature_target, write_to_file
 
 
 class DatasetAnalysis:
     "class that analyzes a dataset"
 
-    def __init__(self, data_frame: pandas.DataFrame, target: list[str]) -> None:
+    def __init__(
+        self,
+        data_frame: pandas.DataFrame,
+        categorical_encoder_decoder: CategoricalEncoderDecoder,
+        target: list[str],
+    ) -> None:
         self.data_frame = data_frame
+        self.categorical_encoder_decoder = categorical_encoder_decoder
         self.target = target
 
     def export_dataset_describe(
@@ -21,7 +28,9 @@ class DatasetAnalysis:
         path: str = "texts/dataset_description",
     ) -> None:
         if export_format == ".xlsx":
-            self.data_frame.describe().round(decimal_digits).to_excel(
+            self.categorical_encoder_decoder.decode(self.data_frame).describe(
+                include="all"
+            ).round(decimal_digits).to_excel(
                 path + export_format, "dataset-description"
             )
         elif export_format == ".txt":
@@ -30,7 +39,9 @@ class DatasetAnalysis:
                 "display.max_columns", None, "display.max_rows", None
             ):
                 write_to_file(
-                    self.data_frame.describe().round(decimal_digits),
+                    self.categorical_encoder_decoder.decode(self.data_frame)
+                    .describe(include="all")
+                    .round(decimal_digits),
                     path=path + export_format,
                 )
 
@@ -42,7 +53,7 @@ class DatasetAnalysis:
     ) -> None:
         correlations = self.data_frame.corr()
         sns.heatmap(correlations).set(title=title)
-        plt.savefig(saving_path, dpi=dpi)
+        plt.savefig(saving_path, dpi=dpi, bbox_inches="tight")
 
     def export_scatter(
         self,
@@ -55,7 +66,7 @@ class DatasetAnalysis:
         g.map_offdiag(sns.scatterplot)
         g.fig.subplots_adjust(top=0.93)
         g.fig.suptitle(title, size=50)
-        plt.savefig(saving_path, dpi=dpi)
+        plt.savefig(saving_path, dpi=dpi, bbox_inches="tight")
 
     def export_most_correlated_scatter(
         self,
@@ -80,12 +91,12 @@ class DatasetAnalysis:
                 ax.set_title(f"corr({var}, {t})={correlations[var][t]:.2f}")
         fig.suptitle(title.format(", ".join(self.target), var_num), fontsize=font_size)
         fig.tight_layout()
-        plt.savefig(saving_path, dpi=dpi)
+        plt.savefig(saving_path, dpi=dpi, bbox_inches="tight")
 
     def export_p_value_calculation(
         self, path: str = "texts/p_value_calculations.txt"
     ) -> None:
-        features, targets = separate_feature_target(self.data_frame, self.target)
+        features, targets, _ = separate_feature_target(self.data_frame, self.target)
         augmented_dataset = sm.add_constant(features)
         xname = ["constant"] + [
             c for c in self.data_frame.columns if c not in self.target
@@ -101,7 +112,7 @@ class DatasetAnalysis:
                 mode=file_mode,
             )
 
-    def analyze_dataset(self):
+    def analyze_dataset(self) -> None:
         self.export_dataset_describe()
         print("dataset description created")
         self.export_p_value_calculation()
