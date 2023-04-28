@@ -7,6 +7,7 @@ from sklearn.exceptions import DataConversionWarning
 from src.constants import COMPARISON_CRITERIA, DATASET_METADATA, SEED, TEST_SIZE
 from src.data_analysis import DatasetAnalysis
 from src.hparam_search import execute_hparam_search
+from src.metrics import depict_predicted_targets
 from src.model import Pipeline, STDScaler
 from src.utils import (
     CategoricalEncoderDecoder,
@@ -66,10 +67,12 @@ def main():
         test_targets,
         COMPARISON_CRITERIA,
     )
+    print("predicted and target values in testing dataset:")
+    depict_predicted_targets(best_pipeline, test_features, test_targets)
 
-    print("\nAll done!")
+    print("\nall done!")
     print(
-        '*** The charts and text reports are saved in "figs" and "texts" directories, respectively *** '
+        '*** the charts and text reports are saved in "figs" and "texts" directories, respectively *** '
     )
 
 
